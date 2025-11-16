@@ -19,6 +19,14 @@ import {
 import { useProjects } from "@/hooks/use-projects"
 import { useTasks } from "@/hooks/use-tasks"
 import { useDataStore } from "@/lib/data-store"
+import {
+  RevenueChart,
+  ProjectStatusChart,
+  TaskCompletionChart,
+  BudgetUtilizationChart,
+  EmployeePerformanceChart,
+  InvoiceStatusChart,
+} from "@/components/analytics-charts"
 
 export function BusinessAnalytics() {
   const { stats: projectStats } = useProjects()
@@ -418,6 +426,22 @@ export function BusinessAnalytics() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Visual Analytics Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <RevenueChart />
+        <ProjectStatusChart />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TaskCompletionChart />
+        <BudgetUtilizationChart />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <EmployeePerformanceChart />
+        <InvoiceStatusChart />
+      </div>
     </div>
   )
 }
