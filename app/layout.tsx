@@ -6,6 +6,7 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { ChatbotWidget } from "@/components/chatbot/chatbot-widget";
 import { AuthProvider } from "@/components/auth/auth-context";
+import { DataStoreProvider } from "@/lib/data-store";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -33,10 +34,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          <Header />
-          <main>{children}</main>
-          <Footer />
-          <ChatbotWidget />
+          <DataStoreProvider>
+            <Header />
+            <main>{children}</main>
+            <Footer />
+            <ChatbotWidget />
+          </DataStoreProvider>
         </AuthProvider>
       </body>
     </html>
