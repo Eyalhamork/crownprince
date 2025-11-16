@@ -19,6 +19,7 @@ import {
 import { useProjects } from "@/hooks/use-projects"
 import { useNotifications } from "@/hooks/use-notifications"
 import { useDataStore } from "@/lib/data-store"
+import { ActivityFeed } from "@/components/activity-feed"
 
 export function AdminDashboard() {
   const { recentProjects, stats: projectStats } = useProjects()
@@ -197,6 +198,15 @@ export function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Activity Feed */}
+      <ActivityFeed
+        limit={10}
+        showFilters={true}
+        showStats={true}
+        title="Recent Activity"
+        description="Track all activities across your organization"
+      />
     </div>
   )
 }
