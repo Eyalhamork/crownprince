@@ -1,0 +1,40 @@
+# Crown Prince Incorporated - Robots.txt
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://crownprince.com/sitemap.xml
+
+# Disallow admin and protected areas
+Disallow: /admin
+Disallow: /manager
+Disallow: /staff
+Disallow: /portal
+Disallow: /auth/
+Disallow: /api/
+Disallow: /_next/
+
+# Allow search engines to index public pages
+Allow: /
+Allow: /about
+Allow: /services
+Allow: /services/electrical
+Allow: /services/construction
+Allow: /services/logistics
+Allow: /contact
+Allow: /projects
+Allow: /careers
+Allow: /faq
+Allow: /news
+Allow: /quote
+Allow: /calculator
+Allow: /certifications
+Allow: /support
+Allow: /docs
+Allow: /privacy
+Allow: /terms
+Allow: /cookies
+Allow: /team
+
+# Crawl delay for politeness
+Crawl-delay: 1
