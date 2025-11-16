@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline - Crown Prince Incorporated</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e5e7eb;
+    }
+
+    .container {
+      text-align: center;
+      padding: 2rem;
+      max-width: 500px;
+    }
+
+    .crown-icon {
+      font-size: 64px;
+      margin-bottom: 1.5rem;
+      filter: grayscale(50%);
+    }
+
+    h1 {
+      color: #ca8a04;
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      color: #9ca3af;
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+
+    .status {
+      background: rgba(202, 138, 4, 0.1);
+      border: 1px solid rgba(202, 138, 4, 0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .status-icon {
+      font-size: 24px;
+      margin-bottom: 0.5rem;
+    }
+
+    .retry-button {
+      background: #ca8a04;
+      color: #000;
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .retry-button:hover {
+      background: #eab308;
+      transform: translateY(-2px);
+    }
+
+    .retry-button:active {
+      transform: translateY(0);
+    }
+
+    .cached-pages {
+      margin-top: 2rem;
+      text-align: left;
+    }
+
+    .cached-pages h3 {
+      color: #ca8a04;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+    }
+
+    .cached-pages ul {
+      list-style: none;
+    }
+
+    .cached-pages li {
+      margin-bottom: 0.5rem;
+    }
+
+    .cached-pages a {
+      color: #60a5fa;
+      text-decoration: none;
+      font-size: 0.875rem;
+    }
+
+    .cached-pages a:hover {
+      color: #93c5fd;
+      text-decoration: underline;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="crown-icon">👑</div>
+    <h1>You're Offline</h1>
+    <p>
+      It looks like you've lost your internet connection. Don't worry - some pages are available offline.
+    </p>
+
+    <div class="status">
+      <div class="status-icon pulse">📡</div>
+      <div>Waiting for connection...</div>
+    </div>
+
+    <button class="retry-button" onclick="location.reload()">
+      Try Again
+    </button>
+
+    <div class="cached-pages">
+      <h3>Available Offline</h3>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/about">About Us</a></li>
+        <li><a href="/services">Services</a></li>
+        <li><a href="/contact">Contact</a></li>
+        <li><a href="/projects">Projects</a></li>
+        <li><a href="/faq">FAQ</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // Check for connection periodically
+    setInterval(() => {
+      if (navigator.onLine) {
+        location.reload();
+      }
+    }, 5000);
+
+    // Listen for online event
+    window.addEventListener('online', () => {
+      location.reload();
+    });
+  </script>
+</body>
+</html>
