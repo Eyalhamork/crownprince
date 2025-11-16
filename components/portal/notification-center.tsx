@@ -1,93 +1,35 @@
 "use client"
 
 import { useState } from "react"
-import { Bell, Check, X, AlertCircle, Info, CheckCircle, Clock } from "lucide-react"
+import { Bell, Check, X, AlertCircle, Info, CheckCircle, Clock, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
-interface Notification {
-  id: string
-  title: string
-  message: string
-  type: "info" | "success" | "warning" | "error"
-  timestamp: string
-  read: boolean
-  actionUrl?: string
-  actionLabel?: string
-}
-
-const mockNotifications: Notification[] = [
-  {
-    id: "notif-001",
-    title: "Project Milestone Completed",
-    message: "LED lighting installation has been completed for your Office Electrical Upgrade project.",
-    type: "success",
-    timestamp: "2024-02-21T14:30:00Z",
-    read: false,
-    actionUrl: "/portal?tab=projects",
-    actionLabel: "View Project",
-  },
-  {
-    id: "notif-002",
-    title: "Invoice Payment Due",
-    message: "Invoice INV-2024-002 is due in 3 days. Please review and process payment.",
-    type: "warning",
-    timestamp: "2024-02-20T09:00:00Z",
-    read: false,
-    actionUrl: "/portal?tab=billing",
-    actionLabel: "Pay Invoice",
-  },
-  {
-    id: "notif-003",
-    title: "Support Ticket Updated",
-    message: "Your support ticket #001 has been updated with a response from Mike Rodriguez.",
-    type: "info",
-    timestamp: "2024-02-19T16:45:00Z",
-    read: true,
-    actionUrl: "/portal?tab=support",
-    actionLabel: "View Ticket",
-  },
-  {
-    id: "notif-004",
-    title: "New Document Available",
-    message: "Safety inspection certificate has been uploaded to your document library.",
-    type: "info",
-    timestamp: "2024-02-18T11:20:00Z",
-    read: true,
-    actionUrl: "/portal?tab=documents",
-    actionLabel: "View Document",
-  },
-  {
-    id: "notif-005",
-    title: "Project Schedule Update",
-    message: "The timeline for your Warehouse Renovation project has been updated.",
-    type: "info",
-    timestamp: "2024-02-17T13:15:00Z",
-    read: true,
-    actionUrl: "/portal?tab=projects",
-    actionLabel: "View Schedule",
-  },
-]
+import { useNotifications } from "@/hooks/use-notifications"
+import { type Notification } from "@/lib/data-store"
 
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState(mockNotifications)
+  const {
+    allNotifications,
+    unreadNotifications,
+    stats,
+    hasUnread,
+    markNotificationRead,
+    clearNotifications,
+    isLoading,
+  } = useNotifications()
   const [isOpen, setIsOpen] = useState(false)
 
-  const unreadCount = notifications.filter((n) => !n.read).length
-
   const markAsRead = (id: string) => {
-    setNotifications(notifications.map((n) => (n.id === id ? { ...n, read: true } : n)))
+    markNotificationRead(id)
   }
 
   const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })))
-  }
-
-  const deleteNotification = (id: string) => {
-    setNotifications(notifications.filter((n) => n.id !== id))
+    unreadNotifications.forEach(notification => {
+      markNotificationRead(notification.id)
+    })
   }
 
   const getNotificationIcon = (type: Notification["type"]) => {
@@ -96,8 +38,8 @@ export function NotificationCenter() {
         return <CheckCircle className="h-4 w-4 text-green-600" />
       case "warning":
         return <AlertCircle className="h-4 w-4 text-yellow-600" />
-      case "error":
-        return <AlertCircle className="h-4 w-4 text-red-600" />
+      case "urgent":
+        return <AlertTriangle className="h-4 w-4 text-red-600" />
       default:
         return <Info className="h-4 w-4 text-blue-600" />
     }
@@ -109,7 +51,7 @@ export function NotificationCenter() {
         return "border-l-green-500"
       case "warning":
         return "border-l-yellow-500"
-      case "error":
+      case "urgent":
         return "border-l-red-500"
       default:
         return "border-l-blue-500"
@@ -131,17 +73,22 @@ export function NotificationCenter() {
     }
   }
 
-  const unreadNotifications = notifications.filter((n) => !n.read)
-  const readNotifications = notifications.filter((n) => n.read)
+  if (isLoading) {
+    return (
+      <Button variant="ghost" size="sm" className="relative text-white hover:bg-white/10">
+        <Bell className="h-5 w-5" />
+      </Button>
+    )
+  }
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="sm" className="relative text-white hover:bg-white/10">
           <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
+          {stats.unread > 0 && (
             <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs">
-              {unreadCount > 9 ? "9+" : unreadCount}
+              {stats.unread > 9 ? "9+" : stats.unread}
             </Badge>
           )}
         </Button>
@@ -151,31 +98,37 @@ export function NotificationCenter() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Notifications</CardTitle>
-              {unreadCount > 0 && (
+              {hasUnread && (
                 <Button variant="ghost" size="sm" onClick={markAllAsRead} className="text-xs">
                   Mark all read
                 </Button>
               )}
             </div>
-            {unreadCount > 0 && <CardDescription>You have {unreadCount} unread notifications</CardDescription>}
+            {stats.unread > 0 && <CardDescription>You have {stats.unread} unread notifications</CardDescription>}
+            {stats.urgent > 0 && (
+              <div className="flex items-center space-x-1 text-red-600 text-sm">
+                <AlertTriangle className="h-4 w-4" />
+                <span>{stats.urgent} urgent</span>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="p-0">
             <Tabs defaultValue="all" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mx-4 mb-4">
-                <TabsTrigger value="all">All ({notifications.length})</TabsTrigger>
-                <TabsTrigger value="unread">Unread ({unreadCount})</TabsTrigger>
+                <TabsTrigger value="all">All ({stats.total})</TabsTrigger>
+                <TabsTrigger value="unread">Unread ({stats.unread})</TabsTrigger>
               </TabsList>
 
               <TabsContent value="all" className="mt-0">
                 <div className="max-h-96 overflow-y-auto">
-                  {notifications.length === 0 ? (
+                  {allNotifications.length === 0 ? (
                     <div className="p-8 text-center">
                       <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-600">No notifications yet</p>
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      {notifications.map((notification) => (
+                      {allNotifications.map((notification) => (
                         <div
                           key={notification.id}
                           className={`p-4 border-l-4 ${getNotificationColor(notification.type)} ${
@@ -198,11 +151,6 @@ export function NotificationCenter() {
                                     <Clock className="h-3 w-3" />
                                     <span>{formatTimestamp(notification.timestamp)}</span>
                                   </span>
-                                  {notification.actionUrl && (
-                                    <Button variant="ghost" size="sm" className="text-xs h-6 px-2">
-                                      {notification.actionLabel}
-                                    </Button>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -217,14 +165,6 @@ export function NotificationCenter() {
                                   <Check className="h-3 w-3" />
                                 </Button>
                               )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteNotification(notification.id)}
-                                className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
                             </div>
                           </div>
                         </div>
@@ -263,11 +203,6 @@ export function NotificationCenter() {
                                     <Clock className="h-3 w-3" />
                                     <span>{formatTimestamp(notification.timestamp)}</span>
                                   </span>
-                                  {notification.actionUrl && (
-                                    <Button variant="ghost" size="sm" className="text-xs h-6 px-2">
-                                      {notification.actionLabel}
-                                    </Button>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -279,14 +214,6 @@ export function NotificationCenter() {
                                 className="h-6 w-6 p-0"
                               >
                                 <Check className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteNotification(notification.id)}
-                                className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
-                              >
-                                <X className="h-3 w-3" />
                               </Button>
                             </div>
                           </div>
