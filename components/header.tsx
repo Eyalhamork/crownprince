@@ -17,6 +17,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/components/auth/auth-context";
+import { GlobalSearch } from "@/components/search/global-search";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import Image from "next/image";
 
 export function Header() {
@@ -99,6 +102,9 @@ export function Header() {
 
           {/* Authentication-aware Buttons */}
           <div className="hidden md:flex items-center space-x-4">
+            <GlobalSearch />
+            <NotificationBell />
+            <SettingsPanel />
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 <span className="text-gray-300 text-sm">

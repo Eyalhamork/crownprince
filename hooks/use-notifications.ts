@@ -1,87 +1,144 @@
-"use client"
+"use client";
 
-import { useMemo } from "react"
-import { useDataStore, type Notification } from "@/lib/data-store"
+import { useMemo } from "react";
+import { useDataStore } from "@/components/data/data-store-context";
+import { useAuth } from "@/components/auth/auth-context";
+import type { Notification } from "@/lib/mock-data";
 
-export interface NotificationFilters {
-  type?: Notification["type"] | "all"
-  read?: boolean | "all"
-}
-
-export interface NotificationStats {
-  total: number
-  unread: number
-  urgent: number
-  warning: number
-  info: number
-  success: number
-}
-
-export function useNotifications(filters: NotificationFilters = {}) {
+export function useNotifications() {
   const {
     notifications,
     addNotification,
     markNotificationRead,
-    clearNotifications,
-    isLoading,
-  } = useDataStore()
+    markAllNotificationsRead,
+    deleteNotification,
+    getUnreadNotifications,
+  } = useDataStore();
+  const { user } = useAuth();
 
-  const filteredNotifications = useMemo(() => {
-    return notifications.filter(notification => {
-      // Filter by type
-      if (filters.type && filters.type !== "all" && notification.type !== filters.type) {
-        return false
-      }
+  // Get user's notifications
+  const userNotifications = useMemo(() => {
+    if (!user) return [];
+    return notifications
+      .filter((n) => n.userId === user.id || n.userId === "all")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [notifications, user]);
 
-      // Filter by read status
-      if (filters.read !== undefined && filters.read !== "all") {
-        if (notification.read !== filters.read) {
-          return false
-        }
-      }
+  // Unread notifications
+  const unreadNotifications = useMemo(
+    () => userNotifications.filter((n) => !n.read),
+    [userNotifications]
+  );
 
-      return true
-    })
-  }, [notifications, filters])
+  // Count unread
+  const unreadCount = unreadNotifications.length;
 
-  const stats = useMemo((): NotificationStats => {
-    const total = notifications.length
-    const unread = notifications.filter(n => !n.read).length
-    const urgent = notifications.filter(n => n.type === "urgent").length
-    const warning = notifications.filter(n => n.type === "warning").length
-    const info = notifications.filter(n => n.type === "info").length
-    const success = notifications.filter(n => n.type === "success").length
+  // Get notifications by type
+  const getByType = (type: Notification["type"]) =>
+    userNotifications.filter((n) => n.type === type);
 
-    return {
-      total,
-      unread,
-      urgent,
-      warning,
-      info,
-      success,
+  // Get notifications by category
+  const getByCategory = (category: Notification["category"]) =>
+    userNotifications.filter((n) => n.category === category);
+
+  // Mark all as read for current user
+  const markAllRead = () => {
+    if (user) {
+      markAllNotificationsRead(user.id);
     }
-  }, [notifications])
+  };
 
-  const unreadNotifications = useMemo(() => {
-    return notifications.filter(n => !n.read)
-  }, [notifications])
-
-  const urgentNotifications = useMemo(() => {
-    return notifications.filter(n => n.type === "urgent" && !n.read)
-  }, [notifications])
-
-  const hasUnread = unreadNotifications.length > 0
+  // Add notification helper with common patterns
+  const notify = {
+    info: (title: string, message: string, actionUrl?: string) =>
+      user &&
+      addNotification({
+        type: "info",
+        category: "system",
+        title,
+        message,
+        read: false,
+        actionUrl,
+        userId: user.id,
+      }),
+    success: (title: string, message: string, actionUrl?: string) =>
+      user &&
+      addNotification({
+        type: "success",
+        category: "system",
+        title,
+        message,
+        read: false,
+        actionUrl,
+        userId: user.id,
+      }),
+    warning: (title: string, message: string, actionUrl?: string) =>
+      user &&
+      addNotification({
+        type: "warning",
+        category: "system",
+        title,
+        message,
+        read: false,
+        actionUrl,
+        userId: user.id,
+      }),
+    error: (title: string, message: string, actionUrl?: string) =>
+      user &&
+      addNotification({
+        type: "error",
+        category: "system",
+        title,
+        message,
+        read: false,
+        actionUrl,
+        userId: user.id,
+      }),
+    taskDue: (taskTitle: string, daysUntil: number) =>
+      user &&
+      addNotification({
+        type: "warning",
+        category: "task",
+        title: "Task Due Soon",
+        message: `${taskTitle} is due in ${daysUntil} day${daysUntil === 1 ? "" : "s"}`,
+        read: false,
+        actionUrl: "/admin?tab=tasks",
+        userId: user.id,
+      }),
+    projectUpdate: (projectTitle: string, update: string) =>
+      user &&
+      addNotification({
+        type: "info",
+        category: "project",
+        title: "Project Update",
+        message: `${projectTitle}: ${update}`,
+        read: false,
+        actionUrl: "/admin?tab=projects",
+        userId: user.id,
+      }),
+    quoteStatus: (quoteRef: string, status: string) =>
+      user &&
+      addNotification({
+        type: status === "approved" ? "success" : status === "rejected" ? "error" : "info",
+        category: "quote",
+        title: `Quote ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+        message: `Quote ${quoteRef} has been ${status}`,
+        read: false,
+        actionUrl: "/admin?tab=crm",
+        userId: user.id,
+      }),
+  };
 
   return {
-    notifications: filteredNotifications,
-    allNotifications: notifications,
-    stats,
+    notifications: userNotifications,
     unreadNotifications,
-    urgentNotifications,
-    hasUnread,
-    addNotification,
+    unreadCount,
     markNotificationRead,
-    clearNotifications,
-    isLoading,
-  }
+    markAllRead,
+    deleteNotification,
+    getByType,
+    getByCategory,
+    notify,
+    addNotification,
+  };
 }

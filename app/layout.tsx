@@ -1,14 +1,13 @@
 import type React from "react";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { ChatbotWidget } from "@/components/chatbot/chatbot-widget";
 import { AuthProvider } from "@/components/auth/auth-context";
-import { DataStoreProvider } from "@/lib/data-store";
-
-const inter = Inter({ subsets: ["latin"] });
+import { DataStoreProvider } from "@/components/data/data-store-context";
+import { PreferencesProvider } from "@/components/preferences/preferences-context";
+import { PWAProvider } from "@/components/pwa/pwa-provider";
 
 export const metadata: Metadata = {
   title: "Crown Prince Incorporated - Premium Multi-Service Solutions",
@@ -32,13 +31,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className="font-sans antialiased">
         <AuthProvider>
           <DataStoreProvider>
-            <Header />
-            <main>{children}</main>
-            <Footer />
-            <ChatbotWidget />
+            <PreferencesProvider>
+              <PWAProvider>
+                <Header />
+                <main>{children}</main>
+                <Footer />
+                <ChatbotWidget />
+              </PWAProvider>
+            </PreferencesProvider>
           </DataStoreProvider>
         </AuthProvider>
       </body>

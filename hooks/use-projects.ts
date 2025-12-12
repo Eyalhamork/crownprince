@@ -1,159 +1,154 @@
-"use client"
+"use client";
 
-import { useMemo } from "react"
-import { useDataStore, type Project } from "@/lib/data-store"
+import { useMemo } from "react";
+import { useDataStore } from "@/components/data/data-store-context";
+import { useAuth } from "@/components/auth/auth-context";
+import type { Project } from "@/lib/mock-data";
 
-export interface ProjectFilters {
-  status?: Project["status"] | "all"
-  priority?: Project["priority"] | "all"
-  type?: Project["type"] | "all"
-  clientId?: string
-  search?: string
+interface ProjectStats {
+  total: number;
+  byStatus: {
+    planning: number;
+    in_progress: number;
+    completed: number;
+    on_hold: number;
+  };
+  byPriority: {
+    low: number;
+    medium: number;
+    high: number;
+    urgent: number;
+  };
+  byService: {
+    electrical: number;
+    construction: number;
+    logistics: number;
+  };
+  totalBudget: number;
+  totalSpent: number;
+  averageProgress: number;
 }
 
-export interface ProjectStats {
-  total: number
-  active: number
-  completed: number
-  onHold: number
-  inProgress: number
-  planning: number
-  review: number
-  totalBudget: number
-  totalSpent: number
-  averageProgress: number
-  onSchedule: number
-  overdue: number
-  highPriority: number
-  byType: {
-    Construction: number
-    Electrical: number
-    Logistics: number
-  }
-}
+export function useProjects() {
+  const { projects, addProject, updateProject, deleteProject, getProject, getTasksByProject } = useDataStore();
+  const { user } = useAuth();
 
-export function useProjects(filters: ProjectFilters = {}) {
-  const { projects, addProject, updateProject, deleteProject, isLoading } = useDataStore()
-
+  // Filter projects based on user role
   const filteredProjects = useMemo(() => {
-    return projects.filter(project => {
-      // Filter by status
-      if (filters.status && filters.status !== "all" && project.status !== filters.status) {
-        return false
-      }
+    if (!user) return [];
 
-      // Filter by priority
-      if (filters.priority && filters.priority !== "all" && project.priority !== filters.priority) {
-        return false
-      }
-
-      // Filter by type
-      if (filters.type && filters.type !== "all" && project.type !== filters.type) {
-        return false
-      }
-
-      // Filter by client
-      if (filters.clientId && project.clientId !== filters.clientId) {
-        return false
-      }
-
-      // Filter by search term
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase()
-        const matchesName = project.name.toLowerCase().includes(searchLower)
-        const matchesClient = project.client.toLowerCase().includes(searchLower)
-        const matchesDescription = project.description.toLowerCase().includes(searchLower)
-        const matchesId = project.id.toLowerCase().includes(searchLower)
-
-        if (!matchesName && !matchesClient && !matchesDescription && !matchesId) {
-          return false
-        }
-      }
-
-      return true
-    })
-  }, [projects, filters])
-
-  const stats = useMemo((): ProjectStats => {
-    const today = new Date()
-
-    const total = projects.length
-    const active = projects.filter(p => p.status !== "Completed" && p.status !== "On Hold").length
-    const completed = projects.filter(p => p.status === "Completed").length
-    const onHold = projects.filter(p => p.status === "On Hold").length
-    const inProgress = projects.filter(p => p.status === "In Progress").length
-    const planning = projects.filter(p => p.status === "Planning").length
-    const review = projects.filter(p => p.status === "Review").length
-
-    const totalBudget = projects.reduce((sum, p) => sum + p.budget, 0)
-    const totalSpent = projects.reduce((sum, p) => sum + p.spent, 0)
-    const averageProgress = projects.length > 0
-      ? projects.reduce((sum, p) => sum + p.progress, 0) / projects.length
-      : 0
-
-    const onSchedule = projects.filter(p => {
-      if (p.status === "Completed") return true
-      const endDate = new Date(p.endDate)
-      return endDate >= today
-    }).length
-
-    const overdue = projects.filter(p => {
-      if (p.status === "Completed") return false
-      const endDate = new Date(p.endDate)
-      return endDate < today
-    }).length
-
-    const highPriority = projects.filter(p => p.priority === "High").length
-
-    const byType = {
-      Construction: projects.filter(p => p.type === "Construction").length,
-      Electrical: projects.filter(p => p.type === "Electrical").length,
-      Logistics: projects.filter(p => p.type === "Logistics").length,
+    switch (user.role) {
+      case "admin":
+      case "manager":
+        return projects;
+      case "staff":
+        // Staff sees projects they have tasks assigned to
+        return projects;
+      case "client":
+        // Clients see only their own projects
+        return projects.filter((p) => p.clientId === user.id);
+      default:
+        return [];
     }
+  }, [projects, user]);
+
+  // Calculate statistics
+  const stats = useMemo((): ProjectStats => {
+    const projectList = filteredProjects;
 
     return {
-      total,
-      active,
-      completed,
-      onHold,
-      inProgress,
-      planning,
-      review,
-      totalBudget,
-      totalSpent,
-      averageProgress,
-      onSchedule,
-      overdue,
-      highPriority,
-      byType,
-    }
-  }, [projects])
+      total: projectList.length,
+      byStatus: {
+        planning: projectList.filter((p) => p.status === "planning").length,
+        in_progress: projectList.filter((p) => p.status === "in_progress").length,
+        completed: projectList.filter((p) => p.status === "completed").length,
+        on_hold: projectList.filter((p) => p.status === "on_hold").length,
+      },
+      byPriority: {
+        low: projectList.filter((p) => p.priority === "low").length,
+        medium: projectList.filter((p) => p.priority === "medium").length,
+        high: projectList.filter((p) => p.priority === "high").length,
+        urgent: projectList.filter((p) => p.priority === "urgent").length,
+      },
+      byService: {
+        electrical: projectList.filter((p) => p.serviceType === "electrical").length,
+        construction: projectList.filter((p) => p.serviceType === "construction").length,
+        logistics: projectList.filter((p) => p.serviceType === "logistics").length,
+      },
+      totalBudget: projectList.reduce((sum, p) => sum + p.budget, 0),
+      totalSpent: projectList.reduce((sum, p) => sum + p.spent, 0),
+      averageProgress: projectList.length > 0
+        ? Math.round(projectList.reduce((sum, p) => sum + p.progress, 0) / projectList.length)
+        : 0,
+    };
+  }, [filteredProjects]);
 
-  const recentProjects = useMemo(() => {
-    return [...projects]
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 5)
-  }, [projects])
+  // Get active projects (in progress or planning)
+  const activeProjects = useMemo(
+    () => filteredProjects.filter((p) => p.status === "in_progress" || p.status === "planning"),
+    [filteredProjects]
+  );
 
-  const urgentProjects = useMemo(() => {
-    const today = new Date()
-    return projects.filter(project => {
-      if (project.status === "Completed") return false
-      const endDate = new Date(project.endDate)
-      const daysUntilDue = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-      return daysUntilDue <= 7 && daysUntilDue >= 0
-    })
-  }, [projects])
+  // Get overdue projects (past end date but not completed)
+  const overdueProjects = useMemo(
+    () =>
+      filteredProjects.filter((p) => {
+        if (!p.endDate || p.status === "completed") return false;
+        return new Date(p.endDate) < new Date();
+      }),
+    [filteredProjects]
+  );
+
+  // Get projects with high priority
+  const urgentProjects = useMemo(
+    () => filteredProjects.filter((p) => p.priority === "urgent" || p.priority === "high"),
+    [filteredProjects]
+  );
+
+  // Search projects
+  const searchProjects = (query: string): Project[] => {
+    const lowerQuery = query.toLowerCase();
+    return filteredProjects.filter(
+      (p) =>
+        p.title.toLowerCase().includes(lowerQuery) ||
+        p.description.toLowerCase().includes(lowerQuery) ||
+        p.clientName.toLowerCase().includes(lowerQuery) ||
+        p.location.toLowerCase().includes(lowerQuery) ||
+        p.tags.some((tag) => tag.toLowerCase().includes(lowerQuery))
+    );
+  };
+
+  // Filter projects by various criteria
+  const filterProjects = (filters: {
+    status?: Project["status"];
+    priority?: Project["priority"];
+    serviceType?: Project["serviceType"];
+    dateRange?: { start: Date; end: Date };
+  }): Project[] => {
+    return filteredProjects.filter((p) => {
+      if (filters.status && p.status !== filters.status) return false;
+      if (filters.priority && p.priority !== filters.priority) return false;
+      if (filters.serviceType && p.serviceType !== filters.serviceType) return false;
+      if (filters.dateRange) {
+        const projectDate = new Date(p.startDate);
+        if (projectDate < filters.dateRange.start || projectDate > filters.dateRange.end) return false;
+      }
+      return true;
+    });
+  };
 
   return {
     projects: filteredProjects,
-    allProjects: projects,
     stats,
-    recentProjects,
+    activeProjects,
+    overdueProjects,
     urgentProjects,
+    getProject,
     addProject,
     updateProject,
     deleteProject,
-    isLoading,
-  }
+    searchProjects,
+    filterProjects,
+    getTasksByProject,
+  };
 }
