@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,90 +18,48 @@ import {
   CheckCircle,
   MoreHorizontal,
 } from "lucide-react"
+import { useTasks } from "@/hooks/use-tasks"
+import { useDataStore } from "@/lib/data-store"
 
 export function TaskWorkflow() {
   const [searchTerm, setSearchTerm] = useState("")
   const [showNewTask, setShowNewTask] = useState(false)
+  const [newTaskData, setNewTaskData] = useState({
+    title: "",
+    description: "",
+    assignee: "",
+    dueDate: "",
+    priority: "Medium" as "High" | "Medium" | "Low",
+  })
 
-  const tasks = [
-    {
-      id: "TSK-001",
-      title: "Complete electrical inspection for PRJ-001",
-      description: "Conduct final electrical inspection for Downtown Office Complex",
-      assignee: "Sarah Mitchell",
-      project: "PRJ-001",
-      priority: "High",
-      status: "In Progress",
-      dueDate: "2024-02-15",
-      createdDate: "2024-01-10",
-      estimatedHours: 4,
-      actualHours: 2.5,
-      tags: ["Inspection", "Electrical", "Safety"],
-    },
-    {
-      id: "TSK-002",
-      title: "Order materials for residential project",
-      description: "Purchase electrical components for Johnson Family home upgrade",
-      assignee: "Lisa Park",
-      project: "PRJ-002",
-      priority: "Medium",
-      status: "Pending",
-      dueDate: "2024-02-10",
-      createdDate: "2024-01-08",
-      estimatedHours: 2,
-      actualHours: 0,
-      tags: ["Procurement", "Materials", "Residential"],
-    },
-    {
-      id: "TSK-003",
-      title: "Client meeting for warehouse setup",
-      description: "Final walkthrough and sign-off meeting with Supply Chain Inc",
-      assignee: "Michael Torres",
-      project: "PRJ-003",
-      priority: "High",
-      status: "Scheduled",
-      dueDate: "2024-02-08",
-      createdDate: "2024-01-05",
-      estimatedHours: 3,
-      actualHours: 0,
-      tags: ["Meeting", "Client", "Logistics"],
-    },
-    {
-      id: "TSK-004",
-      title: "Update project documentation",
-      description: "Complete project files and documentation for completed projects",
-      assignee: "Alex Chen",
-      project: "Multiple",
-      priority: "Low",
-      status: "Completed",
-      dueDate: "2024-02-05",
-      createdDate: "2024-01-15",
-      estimatedHours: 6,
-      actualHours: 5.5,
-      tags: ["Documentation", "Admin", "Compliance"],
-    },
-  ]
+  const { tasks, stats, updateTask, addTask } = useTasks({
+    search: searchTerm,
+  })
 
-  const workflows = [
-    {
-      name: "Project Initiation",
-      steps: ["Client Consultation", "Site Assessment", "Proposal Creation", "Contract Signing"],
-      activeStep: 2,
-      totalSteps: 4,
-    },
-    {
-      name: "Construction Process",
-      steps: ["Permits & Approvals", "Material Procurement", "Construction Phase", "Quality Inspection"],
-      activeStep: 3,
-      totalSteps: 4,
-    },
-    {
-      name: "Project Completion",
-      steps: ["Final Inspection", "Client Walkthrough", "Documentation", "Invoice & Payment"],
-      activeStep: 1,
-      totalSteps: 4,
-    },
-  ]
+  const { employees, projects } = useDataStore()
+
+  const workflows = useMemo(() => {
+    // Group tasks by project to create workflow views
+    const projectWorkflows = projects.slice(0, 3).map(project => {
+      const projectTasks = tasks.filter(t => t.projectId === project.id)
+      const completedCount = projectTasks.filter(t => t.status === "Completed").length
+      const totalCount = projectTasks.length || 1
+
+      return {
+        name: project.name,
+        projectId: project.id,
+        steps: ["Planning", "In Progress", "Review", "Completed"],
+        activeStep: project.status === "Completed" ? 4 :
+                   project.status === "Review" ? 3 :
+                   project.status === "In Progress" ? 2 : 1,
+        totalSteps: 4,
+        completedTasks: completedCount,
+        totalTasks: projectTasks.length,
+      }
+    })
+
+    return projectWorkflows
+  }, [projects, tasks])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -129,6 +87,42 @@ export function TaskWorkflow() {
       default:
         return "bg-gray-100 text-gray-800"
     }
+  }
+
+  const handleUpdateTaskStatus = (taskId: string, newStatus: string) => {
+    updateTask(taskId, { status: newStatus as any })
+  }
+
+  const handleCreateTask = () => {
+    if (!newTaskData.title || !newTaskData.assignee || !newTaskData.dueDate) {
+      return
+    }
+
+    const assigneeEmployee = employees.find(e => e.name === newTaskData.assignee)
+
+    addTask({
+      title: newTaskData.title,
+      description: newTaskData.description,
+      assignee: newTaskData.assignee,
+      assigneeId: assigneeEmployee?.id || "EMP-001",
+      projectId: "PRJ-001", // Default to first project
+      priority: newTaskData.priority,
+      status: "Pending",
+      dueDate: newTaskData.dueDate,
+      createdDate: new Date().toISOString().split("T")[0],
+      estimatedHours: 4,
+      actualHours: 0,
+      tags: ["New"],
+    })
+
+    setNewTaskData({
+      title: "",
+      description: "",
+      assignee: "",
+      dueDate: "",
+      priority: "Medium",
+    })
+    setShowNewTask(false)
   }
 
   return (
@@ -173,7 +167,7 @@ export function TaskWorkflow() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Tasks</p>
-                <p className="text-2xl font-bold text-gray-900">24</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
               </div>
               <CheckSquare className="h-8 w-8 text-blue-600" />
             </div>
@@ -184,7 +178,7 @@ export function TaskWorkflow() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">In Progress</p>
-                <p className="text-2xl font-bold text-gray-900">8</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.inProgress}</p>
               </div>
               <Clock className="h-8 w-8 text-yellow-600" />
             </div>
@@ -195,7 +189,7 @@ export function TaskWorkflow() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-gray-900">14</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.completed}</p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
@@ -206,7 +200,7 @@ export function TaskWorkflow() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Overdue</p>
-                <p className="text-2xl font-bold text-gray-900">2</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.overdue}</p>
               </div>
               <AlertCircle className="h-8 w-8 text-red-600" />
             </div>
@@ -218,63 +212,78 @@ export function TaskWorkflow() {
         {/* Tasks List */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900">Active Tasks</h3>
-          {tasks.map((task) => (
-            <Card key={task.id} className="bg-white shadow-md hover:shadow-lg transition-shadow">
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900">{task.title}</h4>
-                    <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                  </div>
-                  <Button variant="ghost" size="sm">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
-                  <div className="flex items-center space-x-1">
-                    <User className="h-3 w-3" />
-                    <span>{task.assignee}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="h-3 w-3" />
-                    <span>{task.dueDate}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Clock className="h-3 w-3" />
-                    <span>
-                      {task.actualHours}h / {task.estimatedHours}h
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center space-x-2">
-                    <Badge className={getStatusColor(task.status)}>{task.status}</Badge>
-                    <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
-                  </div>
-                  <Badge variant="outline">{task.project}</Badge>
-                </div>
-
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {task.tags.map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Button size="sm" className="bg-yellow-600 hover:bg-yellow-700">
-                    Update Status
-                  </Button>
-                  <Button size="sm" variant="outline">
-                    Add Comment
-                  </Button>
-                </div>
+          {tasks.length === 0 ? (
+            <Card className="bg-white shadow-md">
+              <CardContent className="pt-6 text-center text-gray-500">
+                No tasks found matching your search.
               </CardContent>
             </Card>
-          ))}
+          ) : (
+            tasks.filter(t => t.status !== "Completed").slice(0, 5).map((task) => (
+              <Card key={task.id} className="bg-white shadow-md hover:shadow-lg transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900">{task.title}</h4>
+                      <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
+                    <div className="flex items-center space-x-1">
+                      <User className="h-3 w-3" />
+                      <span>{task.assignee}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="h-3 w-3" />
+                      <span>{task.dueDate}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Clock className="h-3 w-3" />
+                      <span>
+                        {task.actualHours}h / {task.estimatedHours}h
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      <Badge className={getStatusColor(task.status)}>{task.status}</Badge>
+                      <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                    </div>
+                    <Badge variant="outline">{task.projectId}</Badge>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {task.tags.map((tag, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <select
+                      className="border rounded-md px-2 py-1 text-sm flex-1"
+                      value={task.status}
+                      onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Scheduled">Scheduled</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                    <Button size="sm" variant="outline">
+                      Add Comment
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
 
         {/* Workflows */}
@@ -285,7 +294,7 @@ export function TaskWorkflow() {
               <CardHeader>
                 <CardTitle className="text-lg">{workflow.name}</CardTitle>
                 <CardDescription>
-                  Step {workflow.activeStep} of {workflow.totalSteps}
+                  Step {workflow.activeStep} of {workflow.totalSteps} • {workflow.completedTasks}/{workflow.totalTasks} tasks completed
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -314,7 +323,7 @@ export function TaskWorkflow() {
                   ))}
                 </div>
                 <Button size="sm" className="w-full bg-yellow-600 hover:bg-yellow-700">
-                  Advance Workflow
+                  View Project Details
                 </Button>
               </CardContent>
             </Card>
@@ -333,24 +342,64 @@ export function TaskWorkflow() {
             <CardContent className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-700">Task Title</label>
-                <Input placeholder="Enter task title..." />
+                <Input
+                  placeholder="Enter task title..."
+                  value={newTaskData.title}
+                  onChange={(e) => setNewTaskData({ ...newTaskData, title: e.target.value })}
+                />
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">Description</label>
-                <Textarea placeholder="Enter task description..." />
+                <Textarea
+                  placeholder="Enter task description..."
+                  value={newTaskData.description}
+                  onChange={(e) => setNewTaskData({ ...newTaskData, description: e.target.value })}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700">Assignee</label>
-                  <Input placeholder="Select assignee..." />
+                  <select
+                    className="w-full border rounded-md px-3 py-2 text-sm"
+                    value={newTaskData.assignee}
+                    onChange={(e) => setNewTaskData({ ...newTaskData, assignee: e.target.value })}
+                  >
+                    <option value="">Select assignee...</option>
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.name}>
+                        {emp.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Due Date</label>
-                  <Input type="date" />
+                  <Input
+                    type="date"
+                    value={newTaskData.dueDate}
+                    onChange={(e) => setNewTaskData({ ...newTaskData, dueDate: e.target.value })}
+                  />
                 </div>
               </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Priority</label>
+                <select
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                  value={newTaskData.priority}
+                  onChange={(e) => setNewTaskData({ ...newTaskData, priority: e.target.value as any })}
+                >
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </div>
               <div className="flex items-center space-x-2 pt-4">
-                <Button className="flex-1 bg-yellow-600 hover:bg-yellow-700">Create Task</Button>
+                <Button
+                  className="flex-1 bg-yellow-600 hover:bg-yellow-700"
+                  onClick={handleCreateTask}
+                >
+                  Create Task
+                </Button>
                 <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setShowNewTask(false)}>
                   Cancel
                 </Button>

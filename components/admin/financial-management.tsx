@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,105 +17,84 @@ import {
   CheckCircle,
   Download,
 } from "lucide-react"
+import { useDataStore } from "@/lib/data-store"
+import { useProjects } from "@/hooks/use-projects"
 
 export function FinancialManagement() {
-  const financialMetrics = [
-    {
-      title: "Total Revenue",
-      value: "$2,847,500",
-      change: "+12.5%",
-      trend: "up",
-      period: "This Year",
-    },
-    {
-      title: "Outstanding Invoices",
-      value: "$156,750",
-      change: "-8.2%",
-      trend: "down",
-      period: "Current",
-    },
-    {
-      title: "Monthly Expenses",
-      value: "$89,200",
-      change: "+3.1%",
-      trend: "up",
-      period: "January 2024",
-    },
-    {
-      title: "Profit Margin",
-      value: "24.8%",
-      change: "+1.2%",
-      trend: "up",
-      period: "This Quarter",
-    },
-  ]
+  const { invoices, expenses, markInvoicePaid } = useDataStore()
+  const { stats: projectStats } = useProjects()
 
-  const invoices = [
-    {
-      id: "INV-001",
-      client: "Metro Corporation",
-      project: "Downtown Office Complex",
-      amount: "$45,000",
-      dueDate: "2024-02-15",
-      status: "Paid",
-      paidDate: "2024-02-10",
-    },
-    {
-      id: "INV-002",
-      client: "Johnson Family",
-      project: "Residential Wiring",
-      amount: "$18,750",
-      dueDate: "2024-02-20",
-      status: "Pending",
-      paidDate: null,
-    },
-    {
-      id: "INV-003",
-      client: "Supply Chain Inc",
-      project: "Warehouse Setup",
-      amount: "$67,500",
-      dueDate: "2024-01-30",
-      status: "Overdue",
-      paidDate: null,
-    },
-  ]
+  // Calculate financial metrics
+  const financialMetrics = useMemo(() => {
+    const paidInvoices = invoices.filter(inv => inv.status === "Paid")
+    const totalRevenue = paidInvoices.reduce((sum, inv) => sum + inv.amount, 0)
 
-  const expenses = [
-    {
-      category: "Payroll",
-      amount: "$45,600",
-      budget: "$50,000",
-      percentage: 91.2,
-      status: "On Track",
-    },
-    {
-      category: "Materials",
-      amount: "$23,400",
-      budget: "$25,000",
-      percentage: 93.6,
-      status: "On Track",
-    },
-    {
-      category: "Equipment",
-      amount: "$12,800",
-      budget: "$15,000",
-      percentage: 85.3,
-      status: "Under Budget",
-    },
-    {
-      category: "Operations",
-      amount: "$7,400",
-      budget: "$8,000",
-      percentage: 92.5,
-      status: "On Track",
-    },
-  ]
+    const outstandingInvoices = invoices.filter(
+      inv => inv.status === "Pending" || inv.status === "Overdue"
+    )
+    const outstandingAmount = outstandingInvoices.reduce((sum, inv) => sum + inv.amount, 0)
 
-  const revenueByService = [
-    { service: "Construction", revenue: "$1,425,000", percentage: 50.1 },
-    { service: "Electrical", revenue: "$854,250", percentage: 30.0 },
-    { service: "Logistics", revenue: "$568,250", percentage: 19.9 },
-  ]
+    const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0)
+    const profitMargin = totalRevenue > 0
+      ? ((totalRevenue - totalExpenses) / totalRevenue * 100).toFixed(1)
+      : "0"
+
+    return [
+      {
+        title: "Total Revenue",
+        value: `$${totalRevenue.toLocaleString()}`,
+        change: "+12.5%",
+        trend: "up",
+        period: "This Year",
+      },
+      {
+        title: "Outstanding Invoices",
+        value: `$${outstandingAmount.toLocaleString()}`,
+        change: "-8.2%",
+        trend: "down",
+        period: "Current",
+      },
+      {
+        title: "Monthly Expenses",
+        value: `$${totalExpenses.toLocaleString()}`,
+        change: "+3.1%",
+        trend: "up",
+        period: "January 2024",
+      },
+      {
+        title: "Profit Margin",
+        value: `${profitMargin}%`,
+        change: "+1.2%",
+        trend: "up",
+        period: "This Quarter",
+      },
+    ]
+  }, [invoices, expenses])
+
+  const revenueByService = useMemo(() => {
+    const construction = projectStats.byType.Construction * 475000
+    const electrical = projectStats.byType.Electrical * 285000
+    const logistics = projectStats.byType.Logistics * 189000
+    const total = construction + electrical + logistics
+
+    return [
+      {
+        service: "Construction",
+        revenue: `$${construction.toLocaleString()}`,
+        percentage: total > 0 ? (construction / total * 100).toFixed(1) : "0",
+      },
+      {
+        service: "Electrical",
+        revenue: `$${electrical.toLocaleString()}`,
+        percentage: total > 0 ? (electrical / total * 100).toFixed(1) : "0",
+      },
+      {
+        service: "Logistics",
+        revenue: `$${logistics.toLocaleString()}`,
+        percentage: total > 0 ? (logistics / total * 100).toFixed(1) : "0",
+      },
+    ]
+  }, [projectStats])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -140,6 +120,10 @@ export function FinancialManagement() {
       default:
         return "text-gray-600"
     }
+  }
+
+  const handleMarkPaid = (invoiceId: string) => {
+    markInvoicePaid(invoiceId)
   }
 
   return (
@@ -186,7 +170,7 @@ export function FinancialManagement() {
       {/* Financial Tabs */}
       <Tabs defaultValue="invoices" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4 bg-white shadow-md">
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          <TabsTrigger value="invoices">Invoices ({invoices.length})</TabsTrigger>
           <TabsTrigger value="expenses">Expenses</TabsTrigger>
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
@@ -202,8 +186,8 @@ export function FinancialManagement() {
                     <div className="space-y-2">
                       <div>
                         <h3 className="font-semibold text-gray-900">{invoice.id}</h3>
-                        <p className="text-gray-600">{invoice.client}</p>
-                        <p className="text-sm text-gray-500">{invoice.project}</p>
+                        <p className="text-gray-600">{invoice.clientName}</p>
+                        <p className="text-sm text-gray-500">{invoice.projectName}</p>
                       </div>
                       <div className="text-sm text-gray-600">
                         <div className="flex items-center space-x-1">
@@ -219,7 +203,9 @@ export function FinancialManagement() {
                       </div>
                     </div>
                     <div className="text-right space-y-2">
-                      <div className="text-xl font-bold text-gray-900">{invoice.amount}</div>
+                      <div className="text-xl font-bold text-gray-900">
+                        ${invoice.amount.toLocaleString()}
+                      </div>
                       <Badge className={getStatusColor(invoice.status)}>{invoice.status}</Badge>
                     </div>
                   </div>
@@ -229,15 +215,33 @@ export function FinancialManagement() {
                       View Invoice
                     </Button>
                     {invoice.status === "Pending" && (
-                      <Button size="sm" variant="outline">
-                        Send Reminder
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleMarkPaid(invoice.id)}
+                        >
+                          Mark as Paid
+                        </Button>
+                        <Button size="sm" variant="outline">
+                          Send Reminder
+                        </Button>
+                      </>
                     )}
                     {invoice.status === "Overdue" && (
-                      <Button size="sm" variant="destructive">
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        Follow Up
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleMarkPaid(invoice.id)}
+                        >
+                          Mark as Paid
+                        </Button>
+                        <Button size="sm" variant="destructive">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Follow Up
+                        </Button>
+                      </>
                     )}
                   </div>
                 </CardContent>
@@ -258,8 +262,10 @@ export function FinancialManagement() {
                       <p className={`text-sm ${getExpenseStatusColor(expense.status)}`}>{expense.status}</p>
                     </div>
                     <div className="text-right">
-                      <div className="text-xl font-bold text-gray-900">{expense.amount}</div>
-                      <div className="text-sm text-gray-600">of {expense.budget}</div>
+                      <div className="text-xl font-bold text-gray-900">
+                        ${expense.amount.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-gray-600">of ${expense.budget.toLocaleString()}</div>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -294,7 +300,7 @@ export function FinancialManagement() {
                       <div className="flex items-center justify-between text-sm text-gray-600">
                         <span>{item.percentage}% of total</span>
                       </div>
-                      <Progress value={item.percentage} className="h-2" />
+                      <Progress value={parseFloat(item.percentage)} className="h-2" />
                     </div>
                   </div>
                 ))}
